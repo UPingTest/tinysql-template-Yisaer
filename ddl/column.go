@@ -219,12 +219,19 @@ func onDropColumn(t *meta.Meta, job *model.Job) (ver int64, _ error) {
 	//       (Think about how the not null property and default value will influence the `Drop Column` operation.
 	switch colInfo.State {
 	case model.StatePublic:
+		job.SchemaState = model.StateWriteOnly
+		colInfo.State = model.StateWriteOnly
 		// To be filled
 		ver, err = updateVersionAndTableInfoWithCheck(t, job, tblInfo, originalState != colInfo.State)
 	case model.StateWriteOnly:
+		job.SchemaState = model.StateDeleteOnly
+		colInfo.State = model.StateDeleteOnly
 		// To be filled
 		ver, err = updateVersionAndTableInfo(t, job, tblInfo, originalState != colInfo.State)
 	case model.StateDeleteOnly:
+		adjustColumnInfoInDropColumn(tblInfo, colInfo.Offset)
+		job.SchemaState = model.StateDeleteReorganization
+		colInfo.State = model.StateDeleteReorganization
 		// To be filled
 		ver, err = updateVersionAndTableInfo(t, job, tblInfo, originalState != colInfo.State)
 	case model.StateDeleteReorganization:
