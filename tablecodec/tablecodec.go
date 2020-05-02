@@ -71,7 +71,21 @@ func EncodeRowKeyWithHandle(tableID int64, handle int64) kv.Key {
 
 // DecodeRecordKey decodes the key and gets the tableID, handle.
 func DecodeRecordKey(key kv.Key) (tableID int64, handle int64, err error) {
-	/* Your code here */
+	// check length
+	if len(key) != RecordRowKeyLen {
+		return 0, 0, errors.Errorf("DecodeRecordKey, Key length not equal %v, key: %v", RecordRowKeyLen, key)
+	}
+	// check tablePrefix
+	if !bytes.Equal(key[0:tablePrefixLength], tablePrefix) {
+		return 0, 0, errors.Errorf("DecodeRecordKey,Table prefix Check error,key: %v", key)
+	}
+	// check recordPrefix
+	if !bytes.Equal(key[tablePrefixLength+idLen:prefixLen], recordPrefixSep) {
+		return 0, 0, errors.Errorf("DecodeRecordKey,Record prefix Check error,key: %v", key)
+	}
+	tableIDByte := key[tablePrefixLength : tablePrefixLength+idLen]
+	tableID = codec.DecodeCmpUintToInt(binary.BigEndian.Uint64(tableIDByte))
+	handle = codec.DecodeCmpUintToInt(binary.BigEndian.Uint64(key[prefixLen : prefixLen+idLen]))
 	return
 }
 
@@ -94,7 +108,24 @@ func EncodeIndexSeekKey(tableID int64, idxID int64, encodedValue []byte) kv.Key 
 
 // DecodeIndexKeyPrefix decodes the key and gets the tableID, indexID, indexValues.
 func DecodeIndexKeyPrefix(key kv.Key) (tableID int64, indexID int64, indexValues []byte, err error) {
-	/* Your code here */
+	// check length
+	if len(key) < prefixLen+idLen {
+		return 0, 0, nil, errors.Errorf("DecodeIndexKeyPrefix Error: key's length is smaller than %v, key: %v", prefixLen, key)
+	}
+	// check tablePrefix
+	if !bytes.Equal(key[0:tablePrefixLength], tablePrefix) {
+		return 0, 0, nil, errors.Errorf("DecodeIndexKeyPrefix,Table prefix Check error,key: %v", key)
+	}
+	// check indexPrefixt
+	if !bytes.Equal(key[tablePrefixLength+idLen:prefixLen], indexPrefixSep) {
+		return 0, 0, nil, errors.Errorf("DecodeRecordKey,Index prefix Check error,key: %v", key)
+	}
+	tableID = codec.DecodeCmpUintToInt(binary.BigEndian.Uint64(key[tablePrefixLength : tablePrefixLength+idLen]))
+	indexID = codec.DecodeCmpUintToInt(binary.BigEndian.Uint64(key[prefixLen : prefixLen+idLen]))
+	if len(key) == prefixLen+idLen {
+		return tableID, indexID, nil, nil
+	}
+	indexValues = key[prefixLen+idLen:]
 	return tableID, indexID, indexValues, nil
 }
 
